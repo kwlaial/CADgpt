@@ -6,9 +6,9 @@ import sys
 
 
 def get_api_key(context, addon_name):
-    openai.api_type = "azure"
-    openai.api_base = "https://hkust.azure-api.net"
-    openai.api_version = "2023-05-15"
+    # openai.api_type = "azure"
+    # openai.api_base = "https://hkust.azure-api.net"
+    # openai.api_version = "2023-05-15"
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
     return addon_prefs.api_key
