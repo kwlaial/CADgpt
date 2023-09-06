@@ -98,7 +98,7 @@ class GPT4_OT_ShowCode(bpy.types.Operator):
         return {'FINISHED'}
 
 class GPT4_PT_Panel(bpy.types.Panel):
-    bl_label = "GPT-4 Blender Assistant"
+    bl_label = "GPT-4 Blender Assistant - Test2"
     bl_idname = "GPT4_PT_Panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -159,6 +159,10 @@ class GPT4_OT_Execute(bpy.types.Operator):
     )
 
     def execute(self, context):
+        # openai.api_type = "azure"
+        # openai.api_base = "https://hkust.azure-api.net"
+        # openai.api_version = "2023-05-15"
+        
         openai.api_key = get_api_key(context, __name__)
         # if null then set to env key
         if not openai.api_key:
