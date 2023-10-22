@@ -105,6 +105,7 @@ class GPT4_PT_Panel(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "GPT-4 Assistant"
+    bl_ui_units_x = 500
 
     def draw(self, context):
         layout = self.layout
@@ -116,12 +117,12 @@ class GPT4_PT_Panel(bpy.types.Panel):
             if message.type == "assistant":
                 row = box.row()
                 row.label(text="Assistant: ")
-                show_code_op = row.operator("gpt4.show_code", text="Show Code")
-                show_code_op.code = message.content
                 delete_message_op = row.operator(
                     "gpt4.delete_message", text="", icon="TRASH", emboss=False
                 )
                 delete_message_op.message_index = index
+                show_code_op = row.operator("gpt4.show_code", text="Show Code")
+                show_code_op.code = message.content           
             else:
                 row = box.row()
                 row.label(text=f"User: {message.content}")
@@ -129,6 +130,8 @@ class GPT4_PT_Panel(bpy.types.Panel):
                     "gpt4.delete_message", text="", icon="TRASH", emboss=False
                 )
                 delete_message_op.message_index = index
+                retry_question = row.operator("gpt4.retry_question", text="Retry")
+                retry_question.message = message.content
 
         column.separator()
 
@@ -171,7 +174,6 @@ class GPT4_OT_Execute(bpy.types.Operator):
     )
 
     def execute(self, context):
-
         api_key = get_api_key(context, __name__)
         # if null then set to env key
 
@@ -216,6 +218,53 @@ class GPT4_OT_Execute(bpy.types.Operator):
         context.scene.gpt4_button_pressed = False
         return {"FINISHED"}
 
+class GPT4_OT_Retry(bpy.types.Operator):
+    bl_idname = "gpt4.retry_question"
+    bl_label = "Retry"
+    bl_options = {"REGISTER", "UNDO"}
+
+    message: bpy.props.StringProperty(
+        name="message",
+        description="Enter your message",
+        default="",
+    )
+
+    def execute(self, context):
+        api_key = get_api_key(context, __name__)
+
+        context.scene.gpt4_button_pressed = True
+        bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
+
+        blender_code = generate_blender_code(
+            self.message,
+            context.scene.gpt4_chat_history,
+            system_prompt,
+            api_key,
+        )
+
+        message = context.scene.gpt4_chat_history.add()
+        message.type = "user"
+        message.content = self.message
+
+        # Clear the chat input field
+        context.scene.gpt4_chat_input = ""
+
+        if blender_code:
+            message = context.scene.gpt4_chat_history.add()
+            message.type = "assistant"
+            message.content = blender_code
+
+            global_namespace = globals().copy()
+
+        try:
+            exec(blender_code, global_namespace)
+        except Exception as e:
+            self.report({"ERROR"}, f"Error executing generated code: {e}")
+            context.scene.gpt4_button_pressed = False
+            return {"CANCELLED"}
+
+        context.scene.gpt4_button_pressed = False
+        return {"FINISHED"}
 
 def menu_func(self, context):
     self.layout.operator(GPT4_OT_Execute.bl_idname)
@@ -239,6 +288,7 @@ class GPT4AddonPreferences(bpy.types.AddonPreferences):
 def register():
     bpy.utils.register_class(GPT4AddonPreferences)
     bpy.utils.register_class(GPT4_OT_Execute)
+    bpy.utils.register_class(GPT4_OT_Retry)
     bpy.utils.register_class(GPT4_PT_Panel)
     bpy.utils.register_class(GPT4_OT_ClearChat)
     bpy.utils.register_class(GPT4_OT_ShowCode)
@@ -251,6 +301,7 @@ def register():
 def unregister():
     bpy.utils.unregister_class(GPT4AddonPreferences)
     bpy.utils.unregister_class(GPT4_OT_Execute)
+    bpy.utils.unregister_class(GPT4_OT_Retry)
     bpy.utils.unregister_class(GPT4_PT_Panel)
     bpy.utils.unregister_class(GPT4_OT_ClearChat)
     bpy.utils.unregister_class(GPT4_OT_ShowCode)

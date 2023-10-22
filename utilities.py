@@ -68,7 +68,7 @@ def generate_blender_code(prompt, chat_history, system_prompt, api_key):
             "role": "user",
             "content": "Can you please write Blender code for me that accomplishes the following task: "
             + prompt
-            + "? \n. Do not respond with anything that is not Python code. Do not provide explanations",
+            + "? \n. Do not respond with anything that is not Python code. Do not provide explanations, make sure it is compilable",
         }
     )
     data = {"messages": messages}
