@@ -3,6 +3,7 @@ import os
 import bpy
 import bpy.props
 import re
+import json
 
 # Add the 'libs' folder to the Python path
 libs_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
@@ -65,6 +66,41 @@ class GPT4_OT_DeleteMessage(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class GPT4_OT_ShowResponse(bpy.types.Operator):
+    bl_idname = "gpt4.show_debug"
+    bl_label = "Full Response"
+    bl_options = {"REGISTER", "UNDO"}
+
+    debug: bpy.props.StringProperty(
+        name="Debug",
+        description="The full response",
+        default="",
+    )
+
+    def execute(self, context):
+        text_name = "GPT4_full_response.py"
+        text = bpy.data.texts.get(text_name)
+        if text is None:
+            text = bpy.data.texts.new(text_name)
+
+        text.clear()
+        debug = eval(self.debug)
+        text.write(json.dumps(debug, indent=4))
+
+        text_editor_area = None
+        for area in context.screen.areas:
+            if area.type == "TEXT_EDITOR":
+                text_editor_area = area
+                break
+
+        if text_editor_area is None:
+            text_editor_area = split_area_to_text_editor(context)
+
+        text_editor_area.spaces.active.text = text
+
+        return {"FINISHED"}
+
+
 class GPT4_OT_ShowCode(bpy.types.Operator):
     bl_idname = "gpt4.show_code"
     bl_label = "Show Code"
@@ -121,8 +157,11 @@ class GPT4_PT_Panel(bpy.types.Panel):
                     "gpt4.delete_message", text="", icon="TRASH", emboss=False
                 )
                 delete_message_op.message_index = index
+                [code, debug] = message.content.split("CADGPTSPLIT2097", 1)
                 show_code_op = row.operator("gpt4.show_code", text="Show Code")
-                show_code_op.code = message.content           
+                show_code_op.code = code
+                show_debug_op = row.operator("gpt4.show_debug", text="Full Response")
+                show_debug_op.debug = debug
             else:
                 row = box.row()
                 row.label(text=f"User: {message.content}")
@@ -187,11 +226,12 @@ class GPT4_OT_Execute(bpy.types.Operator):
         context.scene.gpt4_button_pressed = True
         bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
 
-        blender_code = generate_blender_code(
+        blender_code, full_res = generate_blender_code(
             context.scene.gpt4_chat_input,
             context.scene.gpt4_chat_history,
             system_prompt,
             api_key,
+            context.scene.gpt4_model,
         )
 
         message = context.scene.gpt4_chat_history.add()
@@ -204,7 +244,7 @@ class GPT4_OT_Execute(bpy.types.Operator):
         if blender_code:
             message = context.scene.gpt4_chat_history.add()
             message.type = "assistant"
-            message.content = blender_code
+            message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
 
             global_namespace = globals().copy()
 
@@ -217,6 +257,7 @@ class GPT4_OT_Execute(bpy.types.Operator):
 
         context.scene.gpt4_button_pressed = False
         return {"FINISHED"}
+
 
 class GPT4_OT_Retry(bpy.types.Operator):
     bl_idname = "gpt4.retry_question"
@@ -235,11 +276,12 @@ class GPT4_OT_Retry(bpy.types.Operator):
         context.scene.gpt4_button_pressed = True
         bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
 
-        blender_code = generate_blender_code(
+        blender_code, full_res = generate_blender_code(
             self.message,
             context.scene.gpt4_chat_history,
             system_prompt,
             api_key,
+            context.scene.gpt4_model,
         )
 
         message = context.scene.gpt4_chat_history.add()
@@ -252,7 +294,7 @@ class GPT4_OT_Retry(bpy.types.Operator):
         if blender_code:
             message = context.scene.gpt4_chat_history.add()
             message.type = "assistant"
-            message.content = blender_code
+            message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
 
             global_namespace = globals().copy()
 
@@ -265,6 +307,7 @@ class GPT4_OT_Retry(bpy.types.Operator):
 
         context.scene.gpt4_button_pressed = False
         return {"FINISHED"}
+
 
 def menu_func(self, context):
     self.layout.operator(GPT4_OT_Execute.bl_idname)
@@ -292,6 +335,7 @@ def register():
     bpy.utils.register_class(GPT4_PT_Panel)
     bpy.utils.register_class(GPT4_OT_ClearChat)
     bpy.utils.register_class(GPT4_OT_ShowCode)
+    bpy.utils.register_class(GPT4_OT_ShowResponse)
     bpy.utils.register_class(GPT4_OT_DeleteMessage)
 
     bpy.types.VIEW3D_MT_mesh_add.append(menu_func)
@@ -305,6 +349,7 @@ def unregister():
     bpy.utils.unregister_class(GPT4_PT_Panel)
     bpy.utils.unregister_class(GPT4_OT_ClearChat)
     bpy.utils.unregister_class(GPT4_OT_ShowCode)
+    bpy.utils.unregister_class(GPT4_OT_ShowResponse)
     bpy.utils.unregister_class(GPT4_OT_DeleteMessage)
 
     bpy.types.VIEW3D_MT_mesh_add.remove(menu_func)

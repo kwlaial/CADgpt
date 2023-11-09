@@ -24,14 +24,14 @@ def init_props():
         name="GPT Model",
         description="Select the GPT model to use",
         items=[
-            ("gpt-4", "GPT-4 (powerful, expensive)", "Use GPT-4"),
             (
                 "gpt-3.5-turbo",
                 "GPT-3.5 Turbo (less powerful, cheaper)",
                 "Use GPT-3.5 Turbo",
             ),
+            ("gpt-4", "GPT-4 (powerful, expensive)", "Use GPT-4"),
         ],
-        default="gpt-4",
+        default="gpt-3.5-turbo",
     )
     bpy.types.Scene.gpt4_chat_input = bpy.props.StringProperty(
         name="Message",
@@ -49,8 +49,15 @@ def clear_props():
     del bpy.types.Scene.gpt4_button_pressed
 
 
-def generate_blender_code(prompt, chat_history, system_prompt, api_key):
-    url = "https://hkust.azure-api.net/openai/deployments/gpt-35-turbo/chat/completions?api-version=2023-05-15"
+def generate_blender_code(prompt, chat_history, system_prompt, api_key, model):
+    modelTag = "gpt-35-turbo"
+    if model == "gpt-4":
+        modelTag = model
+    url = (
+        "https://hkust.azure-api.net/openai/deployments/"
+        + modelTag
+        + "/chat/completions?api-version=2023-07-01-preview"
+    )
 
     headers = {"api-key": api_key}
     messages = [{"role": "system", "content": system_prompt}]
@@ -81,15 +88,15 @@ def generate_blender_code(prompt, chat_history, system_prompt, api_key):
         collected_events = []
         completion_text = ""
         # iterate through the stream of events
-        # for event in res_json_data:
-        #     print(event)
-        #     if "role" in event["choices"][0]["delta"]:
-        #         # skip
-        #         continue
-        #     if len(event["choices"][0]["delta"]) == 0:
-        #         # skip
-        #         continue
-        #     collected_events.append(event)  # save the event response
+        for event in res_json_data:
+            #     print(event)
+            #     if "role" in event["choices"][0]["delta"]:
+            #         # skip
+            #         continue
+            #     if len(event["choices"][0]["delta"]) == 0:
+            #         # skip
+            #         continue
+            collected_events.append(event)  # save the event response
         #     event_text = event["choices"][0]["delta"]["content"]
         #     completion_text += event_text  # append the text
         #     print(completion_text, flush=True, end="\r")
@@ -100,7 +107,7 @@ def generate_blender_code(prompt, chat_history, system_prompt, api_key):
         completion_text = re.findall(r"```(.*?)```", completion_text, re.DOTALL)[0]
         completion_text = re.sub(r"^python", "", completion_text, flags=re.MULTILINE)
 
-        return completion_text
+        return completion_text, res_json_data
     except IndexError:
         return None
 
