@@ -34,3 +34,68 @@
   ],
   usage: { prompt_tokens: 260, completion_tokens: 28, total_tokens: 288 },
 };
+
+// draw a sphere with radius 5 at the origin
+
+{
+    "id": "chatcmpl-8JBkpGFlv8RSN5Pc4WzcITiKwUJuh",
+    "object": "chat.completion",
+    "created": 1699584107,
+    "model": "gpt-35-turbo",
+    "prompt_filter_results": [
+        {
+            "prompt_index": 0,
+            "content_filter_results": {
+                "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                },
+                "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                },
+                "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                },
+                "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                }
+            }
+        }
+    ],
+    "choices": [
+        {
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {
+                "role": "assistant",
+                "content": "```\nimport bpy\nbpy.ops.mesh.primitive_uv_sphere_add(radius=5, location=(0, 0, 0))\n```"
+            },
+            "content_filter_results": {
+                "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                },
+                "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                },
+                "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                },
+                "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                }
+            }
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 589,
+        "completion_tokens": 29,
+        "total_tokens": 618
+    }
+}

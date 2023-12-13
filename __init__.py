@@ -226,6 +226,13 @@ class GPT4_OT_Execute(bpy.types.Operator):
         context.scene.gpt4_button_pressed = True
         bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
 
+        if len(context.scene.gpt4_chat_input) == 0:
+            self.report(
+                {"ERROR"},
+                "Please input some command",
+            )
+            return {"CANCELLED"}
+
         blender_code, full_res = generate_blender_code(
             context.scene.gpt4_chat_input,
             context.scene.gpt4_chat_history,

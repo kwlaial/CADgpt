@@ -11,9 +11,7 @@ def get_api_key(context, addon_name):
     addon_prefs = preferences.addons[addon_name].preferences
     print(addon_name)
     print(addon_prefs)
-    # return addon_prefs.api_key
-    # TODO:hard code here
-    return "5e5d81163812467f803dcc940340a3ee"
+    return addon_prefs.api_key
 
 
 def init_props():
