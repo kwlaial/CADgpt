@@ -9,8 +9,6 @@ import json
 def get_api_key(context, addon_name):
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
-    print(addon_name)
-    print(addon_prefs)
     return addon_prefs.api_key
 
 
@@ -87,17 +85,7 @@ def generate_blender_code(prompt, chat_history, system_prompt, api_key, model):
         completion_text = ""
         # iterate through the stream of events
         for event in res_json_data:
-            #     print(event)
-            #     if "role" in event["choices"][0]["delta"]:
-            #         # skip
-            #         continue
-            #     if len(event["choices"][0]["delta"]) == 0:
-            #         # skip
-            #         continue
             collected_events.append(event)  # save the event response
-        #     event_text = event["choices"][0]["delta"]["content"]
-        #     completion_text += event_text  # append the text
-        #     print(completion_text, flush=True, end="\r")
         choices = res_json_data["choices"]
         for item in choices:
             content = item["message"]["content"]

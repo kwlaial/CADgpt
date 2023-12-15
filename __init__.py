@@ -18,7 +18,7 @@ bl_info = {
     "name": "GPT-4 Blender Assistant",
     "blender": (2, 82, 0),
     "category": "Object",
-    "author": "Aarya (@gd3kr)",
+    "author": "hkust CADGPT",
     "version": (2, 0, 0),
     "location": "3D View > UI > GPT-4 Blender Assistant",
     "description": "Generate Blender Python code using OpenAI's GPT-4 to perform various tasks.",
