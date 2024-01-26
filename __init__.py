@@ -213,57 +213,76 @@ class GPT4_OT_Execute(bpy.types.Operator):
     )
 
     def execute(self, context):
-        api_key = get_api_key(context, __name__)
-        # if null then set to env key
-
-        if not api_key:
-            self.report(
-                {"ERROR"},
-                "No API key detected. Please set the API key in the addon preferences.",
-            )
-            return {"CANCELLED"}
-
-        context.scene.gpt4_button_pressed = True
-        bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
-
-        if len(context.scene.gpt4_chat_input) == 0:
-            self.report(
-                {"ERROR"},
-                "Please input some command",
-            )
-            return {"CANCELLED"}
-
-        blender_code, full_res = generate_blender_code(
-            context.scene.gpt4_chat_input,
-            context.scene.gpt4_chat_history,
-            system_prompt,
-            api_key,
-            context.scene.gpt4_model,
-        )
-
-        message = context.scene.gpt4_chat_history.add()
-        message.type = "user"
-        message.content = context.scene.gpt4_chat_input
-
-        # Clear the chat input field
-        context.scene.gpt4_chat_input = ""
-
-        if blender_code:
+        if context.scene.gpt4_model == "Shap-e":
+            context.scene.gpt4_button_pressed = True
+            res = download_model_shap_e('test')
+            bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
             message = context.scene.gpt4_chat_history.add()
-            message.type = "assistant"
-            message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
+            message.type = "user"
+            message.content = context.scene.gpt4_chat_input
 
-            global_namespace = globals().copy()
+            # Clear the chat input field
+            context.scene.gpt4_chat_input = ""
+            if res:
+                message = context.scene.gpt4_chat_history.add()
+                message.type = "assistant"
+                message.content = 'no code' + "CADGPTSPLIT2097" + res
 
-        try:
-            exec(blender_code, global_namespace)
-        except Exception as e:
-            self.report({"ERROR"}, f"Error executing generated code: {e}")
+                global_namespace = globals().copy()
+
             context.scene.gpt4_button_pressed = False
-            return {"CANCELLED"}
+            return {"FINISHED"}
+        else:
+            api_key = get_api_key(context, __name__)
+            # if null then set to env key
+            if not api_key:
+                self.report(
+                    {"ERROR"},
+                    "No API key detected. Please set the API key in the addon preferences.",
+                )
+                return {"CANCELLED"}
 
-        context.scene.gpt4_button_pressed = False
-        return {"FINISHED"}
+            context.scene.gpt4_button_pressed = True
+            bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
+
+            if len(context.scene.gpt4_chat_input) == 0:
+                self.report(
+                    {"ERROR"},
+                    "Please input some command",
+                )
+                return {"CANCELLED"}
+
+            blender_code, full_res = generate_blender_code(
+                context.scene.gpt4_chat_input,
+                context.scene.gpt4_chat_history,
+                system_prompt,
+                api_key,
+                context.scene.gpt4_model,
+            )
+
+            message = context.scene.gpt4_chat_history.add()
+            message.type = "user"
+            message.content = context.scene.gpt4_chat_input
+
+            # Clear the chat input field
+            context.scene.gpt4_chat_input = ""
+
+            if blender_code:
+                message = context.scene.gpt4_chat_history.add()
+                message.type = "assistant"
+                message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
+
+                global_namespace = globals().copy()
+
+            try:
+                exec(blender_code, global_namespace)
+            except Exception as e:
+                self.report({"ERROR"}, f"Error executing generated code: {e}")
+                context.scene.gpt4_button_pressed = False
+                return {"CANCELLED"}
+
+            context.scene.gpt4_button_pressed = False
+            return {"FINISHED"}
 
 
 class GPT4_OT_Retry(bpy.types.Operator):

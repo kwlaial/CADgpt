@@ -4,6 +4,9 @@ import os
 import sys
 import requests
 import json
+from .task import *
+import asyncio
+import zipfile
 
 
 def get_api_key(context, addon_name):
@@ -26,6 +29,7 @@ def init_props():
                 "Use GPT-3.5 Turbo",
             ),
             ("gpt-4", "GPT-4 (powerful, expensive)", "Use GPT-4"),
+            ("Shap-e", "Shap-e (get model directly)", "Use Shap-e"),
         ],
         default="gpt-3.5-turbo",
     )
@@ -109,3 +113,168 @@ def split_area_to_text_editor(context):
     new_area = context.screen.areas[-1]
     new_area.type = "TEXT_EDITOR"
     return new_area
+
+
+def unpack(file_path):
+    f = zipfile.ZipFile(file_path, "r")
+    for file in f.namelist():
+        f.extract(file, "./models/")
+    f.close()
+    return f.namelist()[0]
+
+
+def get_obj_file(model_path):
+    file_names = os.listdir(model_path)
+    for file_name in file_names:
+        if file_name.endswith(".obj"):
+            return file_name
+    return False
+
+
+def download_model_shap_e(text):
+    url = "http://143.89.76.81:8001/get_model/"
+    data = {}
+    file_path = "./models/Skull.zip"
+    down_res = requests.get(url)
+    if down_res:
+        with open(file_path, "wb") as file:
+            file.write(down_res.content)
+        res_text = down_res.text
+
+        model_dir_name = unpack(file_path)
+
+        model_dir_path = "./models/" + model_dir_name
+
+        model_name = get_obj_file(model_dir_path)
+
+        if model_name:
+            model_path = model_dir_path + model_name
+
+            bpy.ops.wm.obj_import(
+                filepath=model_path,
+                directory=model_dir_path,
+                files=[
+                    {
+                        "name": model_name,
+                        "type": "",
+                        "content": "",
+                    }
+                ],
+            )
+
+        return res_text
+    # print(down_res.json())
+    # task = task.Task(
+    #     data,
+    #     "test_app_id",
+    #     "asset_download",
+    #     task_id="",
+    #     message="Looking for asset",
+    # )
+    # task.async_task = asyncio.ensure_future(
+    #     do_asset_download(url, text, task, file_path)
+    # )
+
+
+async def do_asset_download(url, text, task, file_path):
+    if await download_asset(url, text, task, file_path) is not True:
+        return
+
+
+async def download_asset(url, text, task, file_path) -> bool:
+    try:
+        with open(file_path, "wb") as file:
+            resp_text, resp_status = None, -1
+            with requests.Session() as session:
+                data = {"message": text}
+                async with session.get(
+                    url,
+                    data=json.dumps(data),
+                ) as resp:
+                    resp_status = resp.status
+                    total_length = resp.headers.get("Content-Length")
+
+                    file_size = int(total_length)
+                    fsmb = file_size // (1024 * 1024)
+                    fskb = file_size % 1024
+                    if fsmb == 0:
+                        t = "%iKB" % fskb
+                    else:
+                        t = " %iMB" % fsmb
+                    task.change_progress(
+                        progress=0, message=f"Downloading {t} {task.data['resolution']}"
+                    )
+                    downloaded = 0
+                    async for chunk in resp.content.iter_chunked(4096 * 32):
+                        downloaded += len(chunk)
+                        progress = int(100 * downloaded / file_size)
+                        task.change_progress(
+                            progress=progress,
+                            message=f"Downloading {t} {task.data['resolution']}",
+                        )
+                        file.write(chunk)
+                    return True
+
+    except Exception as e:
+        msg, detail = extract_error_message(e, resp_text, resp_status, "Download asset")
+        task.error(msg, message_detailed=detail)
+        return False
+
+
+def extract_error_message(
+    exception: Exception,
+    resp_text: str,
+    resp_status: int = -1,
+    prefix: str = "",
+) -> tuple[str, str]:
+    """Extract error message from exception, response text and response json.
+    Returns the best message constructed from these sources:
+    1. prefers "detail" key from JSON response - report from BlenderKit server), or whole JSON,
+    2. response text - usually HTML error page,
+    3. exception message - usually connection error, other errors.
+    """
+    if prefix != "":
+        prefix += ": "
+
+    if resp_status != -1:
+        status_string = f" ({resp_status}) "
+    else:
+        status_string = ""
+
+    if resp_text is None:
+        resp_text = ""
+    try:
+        resp_json = json.loads(resp_text)
+    except json.decoder.JSONDecodeError:
+        resp_json = {}
+
+    # JSON not available
+    if resp_json == {}:
+        msg = f"{prefix}{exception}{status_string}"
+        detail = f"{prefix}{type(exception)}: {exception}{status_string}{resp_text}"
+        return msg, detail
+
+    # JSON available
+    detail = resp_json.get("detail")
+    # detail not present
+    if detail is None:
+        msg = f"{prefix}{resp_json}{status_string}"
+        detail = f"{prefix}{type(exception)}: {exception}{status_string}{resp_text}"
+        return msg, detail
+
+    # detail is not dict, most probably a string
+    if type(detail) != dict:
+        msg = f"{prefix}{detail}{status_string}"
+        detail = f"{prefix}{exception}: {msg}"
+        return msg, detail
+
+    # detail is dict
+    statusCode = detail.pop("statusCode", None)
+    errstring = ""
+    for key in detail:
+        errstring += f"{key}: {detail[key]} "
+    errstring.strip()
+
+    msg = f"{prefix}{errstring}{status_string}"
+    detail = f"{prefix}{exception}: {msg} ({statusCode})"
+    return msg, detail
