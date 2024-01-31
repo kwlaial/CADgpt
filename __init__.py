@@ -215,7 +215,7 @@ class GPT4_OT_Execute(bpy.types.Operator):
     def execute(self, context):
         if context.scene.gpt4_model == "Shap-e":
             context.scene.gpt4_button_pressed = True
-            res = download_model_shap_e('test')
+            res = download_model_shap_e(context.scene.gpt4_chat_input)
             bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
             message = context.scene.gpt4_chat_history.add()
             message.type = "user"
@@ -226,7 +226,7 @@ class GPT4_OT_Execute(bpy.types.Operator):
             if res:
                 message = context.scene.gpt4_chat_history.add()
                 message.type = "assistant"
-                message.content = 'no code' + "CADGPTSPLIT2097" + res
+                message.content = "no code" + "CADGPTSPLIT2097" + res
 
                 global_namespace = globals().copy()
 

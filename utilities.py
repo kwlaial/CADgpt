@@ -131,7 +131,7 @@ def get_obj_file(model_path):
     return False
 
 
-def download_model_shap_e(text):
+def download_model_zip(text):
     url = "http://143.89.76.81:8001/get_model/"
     data = {}
     file_path = "./models/Skull.zip"
@@ -174,6 +174,34 @@ def download_model_shap_e(text):
     # task.async_task = asyncio.ensure_future(
     #     do_asset_download(url, text, task, file_path)
     # )
+
+
+def download_model_shap_e(text):
+    url = "http://127.0.0.1:8001/backend/get_model_shap_e"
+    data = {"message": text}
+    file_path = "./models/example.obj"
+    down_res = requests.get(url, params=data)
+    if down_res:
+        with open(file_path, "wb") as file:
+            file.write(down_res.content)
+        res_text = down_res.text
+
+        model_name = "example.obj"
+
+        if model_name:
+            bpy.ops.wm.obj_import(
+                filepath=file_path,
+                directory="./models",
+                files=[
+                    {
+                        "name": model_name,
+                        "type": "",
+                        "content": "",
+                    }
+                ],
+            )
+
+        return res_text
 
 
 async def do_asset_download(url, text, task, file_path):
