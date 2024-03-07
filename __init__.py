@@ -136,7 +136,7 @@ class GPT4_OT_ShowCode(bpy.types.Operator):
 
 
 class GPT4_PT_Panel(bpy.types.Panel):
-    bl_label = "GPT-4 Blender Assistant - Test2"
+    bl_label = "GPT-4 Blender Assistant"
     bl_idname = "GPT4_PT_Panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -162,7 +162,15 @@ class GPT4_PT_Panel(bpy.types.Panel):
                 show_code_op.code = code
                 show_debug_op = row.operator("gpt4.show_debug", text="Full Response")
                 show_debug_op.debug = debug
-            else:
+            elif message.type == "user" and message.label == "shap-e":
+                row = box.row()
+                row.label(text=f"User: {message.content}")
+                import_op = row.operator(
+                    "import.obj_operator", text="Import"
+                )
+                [desc,name] = message.content.split(":", 1)
+                import_op.message = name
+            elif message.type == "user" and message.label == "gpt":
                 row = box.row()
                 row.label(text=f"User: {message.content}")
                 delete_message_op = row.operator(
@@ -187,6 +195,7 @@ class GPT4_PT_Panel(bpy.types.Panel):
         row = column.row(align=True)
         row.operator("gpt4.send_message", text=button_label)
         row.operator("gpt4.clear_chat", text="Clear Chat")
+        row.operator("import_scene.obj_operator", text="Import History Model")
 
         column.separator()
 
@@ -215,21 +224,14 @@ class GPT4_OT_Execute(bpy.types.Operator):
     def execute(self, context):
         if context.scene.gpt4_model == "Shap-e":
             context.scene.gpt4_button_pressed = True
-            res = download_model_shap_e(context.scene.gpt4_chat_input)
+            model_name = download_model_shap_e(context.scene.gpt4_chat_input)
             bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
             message = context.scene.gpt4_chat_history.add()
             message.type = "user"
-            message.content = context.scene.gpt4_chat_input
+            message.label = "shap-e"
+            message.content = context.scene.gpt4_chat_input+":"+model_name
 
-            # Clear the chat input field
             context.scene.gpt4_chat_input = ""
-            if res:
-                message = context.scene.gpt4_chat_history.add()
-                message.type = "assistant"
-                message.content = "no code" + "CADGPTSPLIT2097" + res
-
-                global_namespace = globals().copy()
-
             context.scene.gpt4_button_pressed = False
             return {"FINISHED"}
         else:
@@ -262,6 +264,7 @@ class GPT4_OT_Execute(bpy.types.Operator):
 
             message = context.scene.gpt4_chat_history.add()
             message.type = "user"
+            message.label = "gpt"
             message.content = context.scene.gpt4_chat_input
 
             # Clear the chat input field
@@ -270,6 +273,7 @@ class GPT4_OT_Execute(bpy.types.Operator):
             if blender_code:
                 message = context.scene.gpt4_chat_history.add()
                 message.type = "assistant"
+                message.label = "gpt"
                 message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
 
                 global_namespace = globals().copy()
@@ -354,6 +358,40 @@ class GPT4AddonPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "api_key")
 
 
+class ImportOBJSelect(bpy.types.Operator):
+    """import obj file"""
+
+    bl_idname = "import_scene.obj_operator"
+    bl_label = "Import OBJ Select"
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+
+    def invoke(self, context, event):
+        current_file_path = os.path.dirname(os.path.abspath(__file__))
+        obj_files_path = os.path.join(current_file_path, "models\\")
+        self.filepath = obj_files_path
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        bpy.ops.import_scene.obj(filepath=self.filepath, axis_forward="-Z", axis_up="Y")
+        return {"FINISHED"}
+    
+class ImportOBJ(bpy.types.Operator):
+    """import obj file"""
+
+    bl_idname = "import.obj_operator"
+    bl_label = "Import OBJ"
+    message: bpy.props.StringProperty(
+        name="message",
+        description="Enter your message",
+        default="",
+    )
+
+    def execute(self, context):
+        import_model(self.message)
+        return {"FINISHED"}
+
+
 def register():
     bpy.utils.register_class(GPT4AddonPreferences)
     bpy.utils.register_class(GPT4_OT_Execute)
@@ -363,6 +401,8 @@ def register():
     bpy.utils.register_class(GPT4_OT_ShowCode)
     bpy.utils.register_class(GPT4_OT_ShowResponse)
     bpy.utils.register_class(GPT4_OT_DeleteMessage)
+    bpy.utils.register_class(ImportOBJSelect)
+    bpy.utils.register_class(ImportOBJ)
 
     bpy.types.VIEW3D_MT_mesh_add.append(menu_func)
     init_props()
@@ -377,6 +417,8 @@ def unregister():
     bpy.utils.unregister_class(GPT4_OT_ShowCode)
     bpy.utils.unregister_class(GPT4_OT_ShowResponse)
     bpy.utils.unregister_class(GPT4_OT_DeleteMessage)
+    bpy.utils.unregister_class(ImportOBJSelect)
+    bpy.utils.unregister_class(ImportOBJ)
 
     bpy.types.VIEW3D_MT_mesh_add.remove(menu_func)
     clear_props()

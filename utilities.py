@@ -7,12 +7,14 @@ import json
 from .task import *
 import asyncio
 import zipfile
+from datetime import datetime
 
 
 def get_api_key(context, addon_name):
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
     return addon_prefs.api_key
+    # return "5e5d81163812467f803dcc940340a3ee"
 
 
 def init_props():
@@ -40,6 +42,7 @@ def init_props():
     )
     bpy.types.Scene.gpt4_button_pressed = bpy.props.BoolProperty(default=False)
     bpy.types.PropertyGroup.type = bpy.props.StringProperty()
+    bpy.types.PropertyGroup.label = bpy.props.StringProperty()
     bpy.types.PropertyGroup.content = bpy.props.StringProperty()
 
 
@@ -179,14 +182,16 @@ def download_model_zip(text):
 def download_model_shap_e(text):
     url = "http://127.0.0.1:8001/backend/get_model_shap_e"
     data = {"message": text}
-    file_path = "./models/example.obj"
+    now = datetime.now()
+    formatted_time = now.strftime("%Y-%m-%d-%H-%M-%S")
+    file_path = "./models/" + formatted_time + ".obj"
     down_res = requests.get(url, params=data)
     if down_res:
         with open(file_path, "wb") as file:
             file.write(down_res.content)
         res_text = down_res.text
 
-        model_name = "example.obj"
+        model_name = formatted_time + ".obj"
 
         if model_name:
             bpy.ops.wm.obj_import(
@@ -197,11 +202,28 @@ def download_model_shap_e(text):
                         "name": model_name,
                         "type": "",
                         "content": "",
+                        "label":""
                     }
                 ],
             )
 
-        return res_text
+        return model_name
+
+
+def import_model(text):
+    file_path = "./models/" + text
+    bpy.ops.wm.obj_import(
+        filepath=file_path,
+        directory="./models",
+        files=[
+            {
+                "name": text,
+                "type": "",
+                "content": "",
+                "label":""
+            }
+        ],
+    )
 
 
 async def do_asset_download(url, text, task, file_path):
