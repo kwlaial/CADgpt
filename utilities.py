@@ -13,8 +13,8 @@ from datetime import datetime
 def get_api_key(context, addon_name):
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
-    return addon_prefs.api_key
-    # return "5e5d81163812467f803dcc940340a3ee"
+    # return addon_prefs.api_key
+    return "5e5d81163812467f803dcc940340a3ee"
 
 
 def init_props():
@@ -32,6 +32,7 @@ def init_props():
             ),
             ("gpt-4", "GPT-4 (powerful, expensive)", "Use GPT-4"),
             ("Shap-e", "Shap-e (get model directly)", "Use Shap-e"),
+            ("AI Assistant", "Blender Operations Assistant", "Use Assistant"),
         ],
         default="gpt-3.5-turbo",
     )
@@ -99,6 +100,55 @@ def generate_blender_code(prompt, chat_history, system_prompt, api_key, model):
             completion_text += content
         completion_text = re.findall(r"```(.*?)```", completion_text, re.DOTALL)[0]
         completion_text = re.sub(r"^python", "", completion_text, flags=re.MULTILINE)
+
+        return completion_text, res_json_data
+    except IndexError:
+        return None
+    
+def get_blender_prompt(prompt, chat_history, system_prompt, api_key, model):
+    modelTag = "gpt-35-turbo"
+    url = (
+        "https://hkust.azure-api.net/openai/deployments/"
+        + modelTag
+        + "/chat/completions?api-version=2023-07-01-preview"
+    )
+
+    headers = {"api-key": api_key}
+    messages = [{"role": "system", "content": system_prompt}]
+    for message in chat_history[-10:]:
+        if message.type == "assistant":
+            messages.append(
+                {"role": "assistant", "content": "```\n" + message.content + "\n```"}
+            )
+        else:
+            messages.append({"role": message.type.lower(), "content": message.content})
+
+    # Add the current user message
+    messages.append(
+        {
+            "role": "user",
+            "content": "Please tell me how to accomplish this operation in blender:"
+            + prompt
+        }
+    )
+    data = {"messages": messages}
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    print(response.json())
+    res_json_data = response.json()
+
+    try:
+        collected_events = []
+        completion_text = ""
+        # iterate through the stream of events
+        for event in res_json_data:
+            collected_events.append(event)  # save the event response
+        choices = res_json_data["choices"]
+        for item in choices:
+            content = item["message"]["content"]
+            completion_text += content
+        # completion_text = re.findall(r"```(.*?)```", completion_text, re.DOTALL)[0]
+        # completion_text = re.sub(r"^python", "", completion_text, flags=re.MULTILINE)
 
         return completion_text, res_json_data
     except IndexError:
@@ -197,14 +247,7 @@ def download_model_shap_e(text):
             bpy.ops.wm.obj_import(
                 filepath=file_path,
                 directory="./models",
-                files=[
-                    {
-                        "name": model_name,
-                        "type": "",
-                        "content": "",
-                        "label":""
-                    }
-                ],
+                files=[{"name": model_name, "type": "", "content": "", "label": ""}],
             )
 
         return model_name
@@ -215,14 +258,7 @@ def import_model(text):
     bpy.ops.wm.obj_import(
         filepath=file_path,
         directory="./models",
-        files=[
-            {
-                "name": text,
-                "type": "",
-                "content": "",
-                "label":""
-            }
-        ],
+        files=[{"name": text, "type": "", "content": "", "label": ""}],
     )
 
 

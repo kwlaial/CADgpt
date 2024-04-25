@@ -53,6 +53,16 @@ for c in range(0,count):
     bpy.ops.mesh.primitive_cube_add(location=(x,y,z))
 ```"""
 
+assistant_prompt = """You are an assistant made for the purposes of helping the user with Blender, the 3D software. 
+Users will ask you questions related to the operation of blender, and you need to answer them in natural language.
+
+Example:
+
+user: how to import a file
+assistant: click "File"->"Import", then select the file you want to import.
+
+"""
+
 
 class GPT4_OT_DeleteMessage(bpy.types.Operator):
     bl_idname = "gpt4.delete_message"
@@ -182,7 +192,7 @@ class GPT4_PT_Panel(bpy.types.Panel):
 
         column.separator()
 
-        column.label(text="GPT Model:")
+        column.label(text="AI Model:")
         column.prop(context.scene, "gpt4_model", text="")
 
         column.label(text="Enter your message:")
@@ -232,6 +242,59 @@ class GPT4_OT_Execute(bpy.types.Operator):
             message.content = context.scene.gpt4_chat_input+":"+model_name
 
             context.scene.gpt4_chat_input = ""
+            context.scene.gpt4_button_pressed = False
+            return {"FINISHED"}
+        elif context.scene.gpt4_model == "AI Assistant":
+            api_key = get_api_key(context, __name__)
+            # if null then set to env key
+            if not api_key:
+                self.report(
+                    {"ERROR"},
+                    "No API key detected. Please set the API key in the addon preferences.",
+                )
+                return {"CANCELLED"}
+
+            context.scene.gpt4_button_pressed = True
+            bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
+
+            if len(context.scene.gpt4_chat_input) == 0:
+                self.report(
+                    {"ERROR"},
+                    "Please input some command",
+                )
+                return {"CANCELLED"}
+
+            blender_code, full_res = get_blender_prompt(
+                context.scene.gpt4_chat_input,
+                context.scene.gpt4_chat_history,
+                assistant_prompt,
+                api_key,
+                context.scene.gpt4_model,
+            )
+
+            message = context.scene.gpt4_chat_history.add()
+            message.type = "user"
+            message.label = "gpt"
+            message.content = context.scene.gpt4_chat_input
+
+            # Clear the chat input field
+            context.scene.gpt4_chat_input = ""
+
+            if blender_code:
+                message = context.scene.gpt4_chat_history.add()
+                message.type = "assistant"
+                message.label = "gpt"
+                message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
+
+                global_namespace = globals().copy()
+
+            # try:
+            #     exec(blender_code, global_namespace)
+            # except Exception as e:
+            #     self.report({"ERROR"}, f"Error executing generated code: {e}")
+            #     context.scene.gpt4_button_pressed = False
+            #     return {"CANCELLED"}
+
             context.scene.gpt4_button_pressed = False
             return {"FINISHED"}
         else:
@@ -301,42 +364,82 @@ class GPT4_OT_Retry(bpy.types.Operator):
     )
 
     def execute(self, context):
-        api_key = get_api_key(context, __name__)
+        if context.scene.gpt4_model == "AI Assistant":
+            api_key = get_api_key(context, __name__)
+            # if null then set to env key
+            if not api_key:
+                self.report(
+                    {"ERROR"},
+                    "No API key detected. Please set the API key in the addon preferences.",
+                )
+                return {"CANCELLED"}
 
-        context.scene.gpt4_button_pressed = True
-        bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
+            context.scene.gpt4_button_pressed = True
+            bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
 
-        blender_code, full_res = generate_blender_code(
-            self.message,
-            context.scene.gpt4_chat_history,
-            system_prompt,
-            api_key,
-            context.scene.gpt4_model,
-        )
+            blender_code, full_res = get_blender_prompt(
+                self.message,
+                context.scene.gpt4_chat_history,
+                assistant_prompt,
+                api_key,
+                context.scene.gpt4_model,
+            )
 
-        message = context.scene.gpt4_chat_history.add()
-        message.type = "user"
-        message.content = self.message
-
-        # Clear the chat input field
-        context.scene.gpt4_chat_input = ""
-
-        if blender_code:
             message = context.scene.gpt4_chat_history.add()
-            message.type = "assistant"
-            message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
+            message.type = "user"
+            message.label = "gpt"
+            message.content = self.message
 
-            global_namespace = globals().copy()
+            # Clear the chat input field
+            context.scene.gpt4_chat_input = ""
 
-        try:
-            exec(blender_code, global_namespace)
-        except Exception as e:
-            self.report({"ERROR"}, f"Error executing generated code: {e}")
+            if blender_code:
+                message = context.scene.gpt4_chat_history.add()
+                message.type = "assistant"
+                message.label = "gpt"
+                message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
+
+                global_namespace = globals().copy()
+
             context.scene.gpt4_button_pressed = False
-            return {"CANCELLED"}
+            return {"FINISHED"}
+        else:
+            api_key = get_api_key(context, __name__)
 
-        context.scene.gpt4_button_pressed = False
-        return {"FINISHED"}
+            context.scene.gpt4_button_pressed = True
+            bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
+
+            blender_code, full_res = generate_blender_code(
+                self.message,
+                context.scene.gpt4_chat_history,
+                system_prompt,
+                api_key,
+                context.scene.gpt4_model,
+            )
+
+            message = context.scene.gpt4_chat_history.add()
+            message.type = "user"
+            message.content = self.message
+
+            # Clear the chat input field
+            context.scene.gpt4_chat_input = ""
+
+            if blender_code:
+                message = context.scene.gpt4_chat_history.add()
+                message.type = "assistant"
+                message.content = blender_code + "CADGPTSPLIT2097" + str(full_res)
+
+                global_namespace = globals().copy()
+
+            try:
+                exec(blender_code, global_namespace)
+            except Exception as e:
+                self.report({"ERROR"}, f"Error executing generated code: {e}")
+                context.scene.gpt4_button_pressed = False
+                return {"CANCELLED"}
+
+            context.scene.gpt4_button_pressed = False
+            return {"FINISHED"}
 
 
 def menu_func(self, context):
