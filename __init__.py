@@ -2,7 +2,6 @@ import sys
 import os
 import bpy
 import bpy.props
-import re
 import json
 
 # Add the 'libs' folder to the Python path
@@ -10,7 +9,6 @@ libs_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
 if libs_path not in sys.path:
     sys.path.append(libs_path)
 
-import openai
 
 from .utilities import *
 

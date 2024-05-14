@@ -13,8 +13,7 @@ from datetime import datetime
 def get_api_key(context, addon_name):
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
-    # return addon_prefs.api_key
-    return "5e5d81163812467f803dcc940340a3ee"
+    return addon_prefs.api_key
 
 
 def init_props():
@@ -230,7 +229,7 @@ def download_model_zip(text):
 
 
 def download_model_shap_e(text):
-    url = "http://127.0.0.1:8001/backend/get_model_shap_e"
+    url = "http://143.89.50.56:8001/backend/get_model_shap_e"
     data = {"message": text}
     now = datetime.now()
     formatted_time = now.strftime("%Y-%m-%d-%H-%M-%S")
@@ -262,105 +261,3 @@ def import_model(text):
     )
 
 
-async def do_asset_download(url, text, task, file_path):
-    if await download_asset(url, text, task, file_path) is not True:
-        return
-
-
-async def download_asset(url, text, task, file_path) -> bool:
-    try:
-        with open(file_path, "wb") as file:
-            resp_text, resp_status = None, -1
-            with requests.Session() as session:
-                data = {"message": text}
-                async with session.get(
-                    url,
-                    data=json.dumps(data),
-                ) as resp:
-                    resp_status = resp.status
-                    total_length = resp.headers.get("Content-Length")
-
-                    file_size = int(total_length)
-                    fsmb = file_size // (1024 * 1024)
-                    fskb = file_size % 1024
-                    if fsmb == 0:
-                        t = "%iKB" % fskb
-                    else:
-                        t = " %iMB" % fsmb
-                    task.change_progress(
-                        progress=0, message=f"Downloading {t} {task.data['resolution']}"
-                    )
-                    downloaded = 0
-                    async for chunk in resp.content.iter_chunked(4096 * 32):
-                        downloaded += len(chunk)
-                        progress = int(100 * downloaded / file_size)
-                        task.change_progress(
-                            progress=progress,
-                            message=f"Downloading {t} {task.data['resolution']}",
-                        )
-                        file.write(chunk)
-                    return True
-
-    except Exception as e:
-        msg, detail = extract_error_message(e, resp_text, resp_status, "Download asset")
-        task.error(msg, message_detailed=detail)
-        return False
-
-
-def extract_error_message(
-    exception: Exception,
-    resp_text: str,
-    resp_status: int = -1,
-    prefix: str = "",
-) -> tuple[str, str]:
-    """Extract error message from exception, response text and response json.
-    Returns the best message constructed from these sources:
-    1. prefers "detail" key from JSON response - report from BlenderKit server), or whole JSON,
-    2. response text - usually HTML error page,
-    3. exception message - usually connection error, other errors.
-    """
-    if prefix != "":
-        prefix += ": "
-
-    if resp_status != -1:
-        status_string = f" ({resp_status}) "
-    else:
-        status_string = ""
-
-    if resp_text is None:
-        resp_text = ""
-    try:
-        resp_json = json.loads(resp_text)
-    except json.decoder.JSONDecodeError:
-        resp_json = {}
-
-    # JSON not available
-    if resp_json == {}:
-        msg = f"{prefix}{exception}{status_string}"
-        detail = f"{prefix}{type(exception)}: {exception}{status_string}{resp_text}"
-        return msg, detail
-
-    # JSON available
-    detail = resp_json.get("detail")
-    # detail not present
-    if detail is None:
-        msg = f"{prefix}{resp_json}{status_string}"
-        detail = f"{prefix}{type(exception)}: {exception}{status_string}{resp_text}"
-        return msg, detail
-
-    # detail is not dict, most probably a string
-    if type(detail) != dict:
-        msg = f"{prefix}{detail}{status_string}"
-        detail = f"{prefix}{exception}: {msg}"
-        return msg, detail
-
-    # detail is dict
-    statusCode = detail.pop("statusCode", None)
-    errstring = ""
-    for key in detail:
-        errstring += f"{key}: {detail[key]} "
-    errstring.strip()
-
-    msg = f"{prefix}{errstring}{status_string}"
-    detail = f"{prefix}{exception}: {msg} ({statusCode})"
-    return msg, detail
