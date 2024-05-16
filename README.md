@@ -4,9 +4,11 @@ code origin: https://github.com/gd3kr/BlenderGPT
 
 blender addons tut: https://www.youtube.com/watch?v=dm5T5aOIO8Y
 
-<img width="476" alt="Untitled" src="https://github.com/kwlaial/CADgpt/assets/85923968/846e966f-32bc-42df-b0ba-114358a1491d">
+<!-- <img width="476" alt="Untitled" src="https://github.com/kwlaial/CADgpt/assets/85923968/846e966f-32bc-42df-b0ba-114358a1491d">
 
-Details: https://www.notion.so/39bddbd5e74c48088a0676d543f9f3d7?v=692dbffd41b24464a1417f97bbfa9bfd&pvs=4
+Details: https://www.notion.so/39bddbd5e74c48088a0676d543f9f3d7?v=692dbffd41b24464a1417f97bbfa9bfd&pvs=4 -->
+
+![Alt text](./images/system.png)
 
 ## Installation:
 
@@ -36,6 +38,8 @@ use shap-e
 ![Alt text](./images/1.png)
 import history models
 ![Alt text](./images/2.png)
+how to import an obj file in blender
+![Alt text](./images/assistant.png)
 ## For developer
 
 ### vscode

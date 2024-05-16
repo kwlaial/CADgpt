@@ -13,6 +13,7 @@ from datetime import datetime
 def get_api_key(context, addon_name):
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
+    return "5e5d81163812467f803dcc940340a3ee"
     return addon_prefs.api_key
 
 
@@ -238,8 +239,6 @@ def download_model_shap_e(text):
     if down_res:
         with open(file_path, "wb") as file:
             file.write(down_res.content)
-        res_text = down_res.text
-
         model_name = formatted_time + ".obj"
 
         if model_name:
