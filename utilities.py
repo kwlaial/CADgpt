@@ -13,7 +13,6 @@ from datetime import datetime
 def get_api_key(context, addon_name):
     preferences = context.preferences
     addon_prefs = preferences.addons[addon_name].preferences
-    return "5e5d81163812467f803dcc940340a3ee"
     return addon_prefs.api_key
 
 
